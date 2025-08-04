@@ -1,19 +1,28 @@
 const User = require('../models/User');
 const SuccessData = require('../models/SuccessData');
 const Card = require('../models/Card'); 
-// Save user entries (multiple personal records under same uniqueid)
 exports.saveUserData = async (req, res) => {
   try {
     const { name, mobileNumber, aadhaarNumber, dateOfBirth, panNumber, uniqueid } = req.body;
 
     if (!uniqueid || !name || !mobileNumber || !aadhaarNumber || !dateOfBirth || !panNumber) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+      return res.status(400).json({
+        success: false,
+        message: "All fields (uniqueid, name, mobileNumber, aadhaarNumber, dateOfBirth, panNumber) are required."
+      });
     }
 
     let user = await User.findOne({ uniqueid });
 
     if (user) {
+      // Remove invalid entries (optional but recommended)
+      user.entries = user.entries.filter(e =>
+        e.name && e.mobileNumber && e.aadhaarNumber && e.dateOfBirth && e.panNumber
+      );
+
       user.entries.push({ name, mobileNumber, aadhaarNumber, dateOfBirth, panNumber });
+
+      user.markModified('entries');
     } else {
       user = new User({
         uniqueid,
@@ -23,16 +32,16 @@ exports.saveUserData = async (req, res) => {
 
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "User data submitted successfully!"
     });
-
   } catch (error) {
     console.error("saveUserData error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Error occurred while submitting user data"
+      message: "Error occurred while submitting user data",
+      error: error.message
     });
   }
 };
